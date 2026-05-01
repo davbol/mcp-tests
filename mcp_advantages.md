@@ -123,7 +123,7 @@ A centralized MCP server acts as a **shared tool**. Every agent connects to the 
 
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  Coding      │     │  Support     │     │  Analytics   │
+│  product     │     │  Support     │     │  Analytics   │
 │  Assistant   │     │  Bot         │     │  Agent       │
 └──────┬───────┘     └──────┬───────┘     └──────┬───────┘
        │                    │                    │
