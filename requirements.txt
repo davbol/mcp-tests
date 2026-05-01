@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+pydantic
+uuid
+email-validator
+mcp
+httpx
+sse-starlette
