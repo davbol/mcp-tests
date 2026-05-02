@@ -200,6 +200,12 @@ A common over-engineering mistake is wrapping a simple API call in an agent. Tas
 | The contract is strict and well-defined (JSON Schema) | The task needs to **select and sequence** its own tools dynamically |
 | Examples: fetch a record, run a calculation, validate input | Examples: analyze a document, generate a report, translate with domain context |
 
+#### Why is there no "Skill" Pattern?
+
+The term "Skill" (or "Plugin" depending on frameworks like MBF/Semantic Kernel or LangChain) is a conceptual abstraction at the **agent orchestration layer**, not an integration pattern. A Skill is simply a capability wrapper that combines a prompt, some code, and API calls. 
+
+This document is an *Integration* Decision Framework. Its purpose is to define how capabilities cross the network boundary to interact with enterprise backends and Systems of Record. No matter what it is called at the agent level (a Skill, a Plugin, an Action), at the network level it must resolve to a concrete integration pattern: a direct REST API call (Pattern 1), an MCP connection (Pattern 2), or peer-to-peer delegation (Pattern 3).
+
 ---
 
 ## 4. Decision Tree
