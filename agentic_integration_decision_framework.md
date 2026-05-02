@@ -61,9 +61,6 @@ Before selecting an integration pattern, teams must understand the four categori
 | **Orchestrator Agent** | Decomposes high-level goals into sub-tasks, coordinates other agents | Hierarchical delegation, shared context with sub-agents, planning and sequencing |
 | **Task Agent** | Executes a discrete, well-bounded function | Stateless or short-lived, reusable across contexts, atomic input/output contract |
 
-> [!IMPORTANT]
-> The agent category determines the integration pattern, not the other way around. Start by identifying what kind of agent you are building or connecting to, then use the decision tree below.
-
 ---
 
 ## 3. Three Integration Patterns
@@ -101,13 +98,14 @@ Before selecting an integration pattern, teams must understand the four categori
 | Discoverability | Static — OAS injected at build/deploy time |
 | Operational ownership | API team owns the endpoint; agent team owns the tool wrapper |
 
-#### UTCP as a Pattern 1 Extension
-
-[UTCP (Universal Tool Calling Protocol)](https://www.utcp.io/) extends Pattern 1 with agent-discoverable tool definitions — without introducing a middleman server. A lightweight discovery endpoint (`GET /utcp`) describes how to call existing APIs directly; agents then call those endpoints natively, reusing existing auth and incurring no additional infrastructure or proxy overhead.
-
-Where Pattern 1 with plain OAS is static (definitions are injected at build time), UTCP adds runtime discoverability while keeping the direct-call model intact. For a detailed comparison with Pattern 2 (MCP), see [Section 4.2](#42-pattern-2--mcp-servers-ai-native-integration-layer) and [utcp.io/utcp-vs-mcp](https://www.utcp.io/utcp-vs-mcp).
-
 **Pattern 1 the organizational default.** Most system integrations should start here. Only escalate to Pattern 2 or 3 when the limitations of direct REST become an active constraint.
+
+> [!NOTE]
+> [UTCP (Universal Tool Calling Protocol)](https://www.utcp.io/) extends Pattern 1 with agent-discoverable tool definitions — without introducing a middleman server. A lightweight discovery endpoint (`GET /utcp`) describes how to call existing APIs directly; agents then call those endpoints natively, reusing existing auth and incurring no additional infrastructure or proxy overhead.
+>
+> Where Pattern 1 with plain OAS is static (definitions are injected at build time), UTCP adds runtime discoverability while keeping the direct-call model intact. For a detailed comparison with Pattern 2 (MCP), see [Section 4.2](#42-pattern-2--mcp-servers-ai-native-integration-layer) and [utcp.io/utcp-vs-mcp](https://www.utcp.io/utcp-vs-mcp).
+
+
 
 ---
 
@@ -198,7 +196,7 @@ A common over-engineering mistake is wrapping a simple API call in an agent. Tas
 | Build a **Tool** (Pattern 1 or 2) when… | Build a **Task Agent** when… |
 |:-----------------------------------------|:------------------------------|
 | The task is a deterministic function: input → output | The task requires **multi-step reasoning** to produce a result |
-| The logic can be fully expressed in code (no LLM needed) | The task involves **LLM judgment** — e.g., classification, summarization, NL2SQL |
+| The logic can be fully expressed in code (no LLM needed) | The task involves **LLM judgment** — e.g., classification, summarization |
 | The contract is strict and well-defined (JSON Schema) | The task needs to **select and sequence** its own tools dynamically |
 | Examples: fetch a record, run a calculation, validate input | Examples: analyze a document, generate a report, translate with domain context |
 
@@ -226,8 +224,8 @@ flowchart TD
     Q2 -->|NO| P1
 
     P3["🤝 Pattern 3 — Agent-to-Agent<br/>Expose as autonomous peer via A2A"]
-    P2["⚙️ Pattern 2 — MCP Server<br/>Domain team operates MCP server<br/>within bounded context"]
-    P1["🔧 Pattern 1 — REST API Tools  ★ DEFAULT<br/>Load OAS as tool definitions,<br/>target system API layer"]
+    P2["⚙️ Pattern 2 — MCP Server<br/>Domain team operates MCP server<br/>target Domain layer"]
+    P1["🔧 Pattern 1 — REST API Tools <br/>Load API spec as tool definitions,<br/>target System layer"]
 
     style P1 fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
     style P2 fill:#e3f2fd,stroke:#1565c0,color:#0d47a1
@@ -316,18 +314,6 @@ graph TB
 
 ---
 
-## 7. Governance and Ownership
-
-| Concern | Pattern 1 (REST) | Pattern 2 (MCP) | Pattern 3 (A2A) |
-|:--------|:-----------------|:-----------------|:-----------------|
-| **Who owns the endpoint?** | Product Team (existing) | Product Team / Domain (new MCP server) | Agent team |
-| **SoR authority** | Direct — system API is the governed interface to the SoR | Proxied — MCP routes writes through system APIs; stores no authoritative data | Each agent manages its own SoR relationships |
-| **Change propagation** | Manual OAS re-injection | Automatic via `list_tools` | Agent handles internally |
-| **Auth & access control** | API gateway (existing) | MCP gateway | A2A protocol / agent identity |
-| **Observability** | API metrics (existing) | MCP server telemetry (new) | Agent-level tracing (new) |
-| **Blast radius of change** | All agents using stale OAS | Contained to MCP server consumers | Contained to agent's peers |
-
----
 
 ## References
 
