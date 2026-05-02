@@ -252,7 +252,7 @@ Enterprise architectures traditionally organize capabilities into layers. In an 
 
 | Layer | Scope & Purpose | Agentic Presence |
 |:------|:----------------|:-----------------|
-| **Enterprise Layer** | Cross-domain orchestration, user interaction, and organization-wide processes. | **Interaction Agents** and **Case Agents** coordinating multiple domains via A2A or MCP. |
+| **Interaction/Enterprise Layer** | Cross-domain orchestration, user interaction, and organization-wide processes. | **Interaction Agents** and **Case Agents** coordinating multiple domains via A2A or MCP. |
 | **Domain Layer** | Composes system operations within a bounded context. Encapsulates business logic. | **Orchestration Agents** managing domain-specific workflows, and **MCP Servers** providing AI-native domain facades. |
 | **System Layer** | Canonical access to a specific System of Record (SoR). Enforces data validation and referential integrity. | **Task Agents** executing discrete system operations, and **Pattern 1 APIs** exposing SoR data. |
 
@@ -265,7 +265,7 @@ This mapping shows how agents, MCP servers, and REST APIs coexist across the thr
 
 ```mermaid
 graph TB
-    subgraph ENT["Enterprise Layer/SoE"]
+    subgraph ENT["Interaction/Enterprise Layer/SoE"]
         IA["Interaction/Case Agents"]
     end
 
@@ -296,7 +296,7 @@ graph TB
 
 ### 5.3 Key Layering Rules
 
-1. **Agents can live anywhere, but A2A (Pattern 3) connects them.** Whether an agent is a task agent on the system layer or an orchestrator on the enterprise layer, if another agent needs to interact with it autonomously, they use Pattern 3.
+1. **Agents can live anywhere, but A2A (Pattern 3) connects them.** Whether an agent is a task agent on the system layer or an orchestrator on the interaction/enterprise layer, if another agent needs to interact with it autonomously, they use Pattern 3.
 2. **Agents never bypass data governance.** Whether acting through a Task Agent, an MCP server, or directly calling a REST API, all writes to a System of Record must flow through governed System Layer interfaces (enforcing validation and audit trails). The SoR remains the single source of truth; agent state is ephemeral.
 3. **MCP Servers (Pattern 2) are domain-level facades.** An MCP server sits at the Domain Layer. It does not replace a REST API nor store authoritative data; it curates an AI-optimized view (tools, resources, prompts) of underlying System APIs. There should be one MCP server per bounded context.
 4. **REST APIs (Pattern 1) remain the foundation.** Pattern 1 is used by MCP servers to talk to backends, by agents to talk directly to simple systems, and by human-driven UI applications. It is the default system-level contract.
