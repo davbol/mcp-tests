@@ -72,7 +72,7 @@ Before selecting an integration pattern, teams must understand the four categori
 |:--|:--|:--|:--|
 | **Role** | Default integration path | AI-native integration layer | Autonomous peer collaboration |
 | **Mechanism** | OAS loaded as tool definitions; agents call REST endpoints directly via generated wrappers | Remote MCP servers expose tools, resources, and prompts discovered dynamically at runtime | Agents exposed as autonomous endpoints; interaction via multi-turn task-based messaging (e.g. A2A protocol) |
-| **Scope** | Within a bounded context | Within a bounded context | Across bounded contexts |
+| **Scope** | Within a bounded context | Within a bounded context | Within or across bounded contexts |
 | **Relationship to SoR** | Direct, governed access via system APIs | Facade above system APIs — routes writes through them; stores no authoritative data | Each agent maintains its own SoR relationships within its context |
 | **Interaction model** | Stateless, discrete tool calls | Stateless or session-based tool/resource calls | Multi-turn, stateful, non-deterministic completion |
 | **Maturity** | Established — broad tooling support | Emerging — growing ecosystem | Early — protocol standards still evolving |
@@ -158,13 +158,16 @@ Where Pattern 1 with plain OAS is static (definitions are injected at build time
 >
 > — Philip Stephens, [*Agents are not tools*](https://discuss.google.dev/t/agents-are-not-tools/192812), Google Developer Knowledge Hub
 
+> [!IMPORTANT]
+> **The "agent as tool" anti-pattern** occurs when an Agent which requires multi-turn, autonomous problem solving — is forced behind a tool interface. This creates fragile workarounds: error codes abused for control flow, overloaded response schemas, and lost session state. Use Pattern 3 for these agents.
+
 **The fundamental difference:**
 
 | | Tool (Pattern 1 & 2) | Agent (Pattern 3) |
 |:--|:---------------------|:------------------|
 | **Interaction** | Request → Response (single turn) | Multi-turn, iterative problem solving |
 | **Completion** | Guaranteed: success or error | Not guaranteed: may be interrupted, incomplete, or abandoned |
-| **I/O domain** | Bounded: `ƒ(x ∈ 𝒟) → y ∈ ℝ` | Effectively unbounded: natural language + structured data |
+| **I/O domain** | Bounded: `ƒ(x ∈ 𝒟) → y ∈ ℝ` <br/>*(Strict schema input yields predictable schema output)* | Effectively unbounded: `A(x_t, s_t) → (y_t, s_{t+1})` <br/>*(Stochastic mapping over unstructured natural language input and session state)* |
 | **Control flow** | Caller retains control | Control may transfer; agent has autonomy |
 | **State** | Stateless or caller-managed | Agent manages its own state; may require resumption |
 | **Error model** | Binary: success/failure | Nuanced: needs info, blocked, partially complete, suggestion |
@@ -183,14 +186,14 @@ Where Pattern 1 with plain OAS is static (definitions are injected at build time
 
 | Agent Category | Typical Integration Pattern | Rationale |
 |:---------------|:---------------------------|:----------|
-| **Interaction Agent** | Exposed via A2A (Pattern 3) | Multi-turn dialogue, session state, unpredictable conversation flow |
-| **Case Agent** | Exposed via A2A (Pattern 3) | Long-running lifecycle, interruptions, resumptions, autonomous decisions |
-| **Orchestrator Agent** | Consumes Patterns 1, 2, and 3 | Delegates to task agents and peer agents; manages the plan |
+| **Interaction Agent** | Exposed via A2A (Pattern 3), consumes Patterns 1, 2, and 3 | Multi-turn dialogue, session state, unpredictable conversation flow |
+| **Case Agent** | Exposed via A2A (Pattern 3), consumes Patterns 1, 2, and 3 | Long-running lifecycle, interruptions, resumptions, autonomous decisions |
+| **Orchestrator Agent** | Exposed via A2A (Pattern 3), consumes Patterns 1, 2, and 3 | Delegates to task agents and peer agents; manages the plan |
 | **Task Agent** | See guidance below | Not every discrete task needs an agent — distinguish carefully |
 
 #### When to build a Task Agent vs. when a Tool is sufficient
 
-A common over-engineering mistake is wrapping a simple API call in an agent. Task agents carry overhead (LLM inference, prompt management, observability) that is only justified when the task requires **reasoning**, not just execution.
+A common over-engineering mistake is wrapping a simple API call in an agent. Task agents carry overhead (LLM inference, prompt management, observability) that is only justified when the task requires **reasoning**, not just execution. A task agent is warranted only when the task itself requires an LLM reasoning loop. If the capability can be expressed as a deterministic function — even a complex one — expose it as a tool via Pattern 1 (REST) or Pattern 2 (MCP), not as an agent.
 
 | Build a **Tool** (Pattern 1 or 2) when… | Build a **Task Agent** when… |
 |:-----------------------------------------|:------------------------------|
@@ -198,12 +201,6 @@ A common over-engineering mistake is wrapping a simple API call in an agent. Tas
 | The logic can be fully expressed in code (no LLM needed) | The task involves **LLM judgment** — e.g., classification, summarization, NL2SQL |
 | The contract is strict and well-defined (JSON Schema) | The task needs to **select and sequence** its own tools dynamically |
 | Examples: fetch a record, run a calculation, validate input | Examples: analyze a document, generate a report, translate with domain context |
-
-> [!IMPORTANT]
-> **Default to tools.** A task agent is warranted only when the task itself requires an LLM reasoning loop. If the capability can be expressed as a deterministic function — even a complex one — expose it as a tool via Pattern 1 (REST) or Pattern 2 (MCP), not as an agent.
-
-> [!NOTE]
-> **The "agent as tool" anti-pattern** occurs when a Case Agent or Interaction Agent — which inherently requires multi-turn, autonomous problem solving — is forced behind a tool interface. This creates fragile workarounds: error codes abused for control flow, overloaded response schemas, and lost session state. Use Pattern 3 for these agents.
 
 ---
 
@@ -243,133 +240,68 @@ flowchart TD
 
 ---
 
-## 5. Layered Architecture — DDD, API Tiers, and Systems of Record
+## 5. Layered Architecture
 
-### 5.1 Enterprise API Layering
+Enterprise architectures traditionally organize capabilities into layers. In an agentic architecture, **agents are not just top-level consumers—they can live at any layer of the stack**. 
 
-Enterprise integration architectures traditionally organize APIs into layers. Agentic integration patterns must respect and extend — not bypass — this established structure:
+### 5.1 Enterprise Layering
 
-| Layer | Purpose | SoR Relationship | Examples |
-|:------|:--------|:-----------------|:---------|
-| **System API** | Canonical, stable access to a [System of Record](https://www.ibm.com/think/topics/system-of-record). One API per SoR. Enforces validation, referential integrity, and audit trails. | **Direct** — the governed gateway to SoR data. All reads and writes to the golden record flow through this layer. | `ERP Product API`, `CRM Contact API`, `Payment Gateway API` |
-| **Domain API** (Process API) | Composes system APIs into domain-meaningful operations. Encapsulates business logic within a [bounded context](https://martinfowler.com/bliki/BoundedContext.html). | **Mediated** — orchestrates operations across one or more SoRs within the domain's consistency boundary. | `Order Fulfillment API`, `Claims Processing API`, `Inventory Management API` |
-| **Experience API** (Agent-facing) | Tailored for a specific consumer. In the agentic world: curated tool surfaces, contextual resources, behavioral prompts. | **Derived** — provides read-optimized, context-enriched views of SoR data. Writes are proxied back through system/domain APIs. | MCP servers, A2A agent endpoints, BFF APIs |
+| Layer | Scope & Purpose | Agentic Presence |
+|:------|:----------------|:-----------------|
+| **Enterprise Layer** | Cross-domain orchestration, user interaction, and organization-wide processes. | **Interaction Agents** and **Case Agents** coordinating multiple domains via A2A or MCP. |
+| **Domain Layer** | Composes system operations within a bounded context. Encapsulates business logic. | **Orchestration Agents** managing domain-specific workflows, and **MCP Servers** providing AI-native domain facades. |
+| **System Layer** | Canonical access to a specific System of Record (SoR). Enforces data validation and referential integrity. | **Task Agents** executing discrete system operations, and **Pattern 1 APIs** exposing SoR data. |
 
 > [!IMPORTANT]
-> **Pattern 1 (REST tools) targets the System and Domain API layers** — the governed path to Systems of Record. Pattern 2 (MCP) operates at the **Domain/Experience boundary** — it is not a peer of REST but a facade *above* it that provides AI-optimized views of SoR data. Pattern 3 (A2A) is a peer-to-peer concern that crosses bounded contexts entirely.
+> **Pattern 3 (A2A)** is used whenever two agents need to collaborate, regardless of which layer they live on (e.g., an Enterprise Orchestrator talking to a System Task Agent). 
 
 ### 5.2 Where Patterns Live in the Stack
 
+This mapping shows how agents, MCP servers, and REST APIs coexist across the three layers:
+
 ```mermaid
 graph TB
-    subgraph AGENTS["🤖 Agents (Consumers)"]
-        IA["Interaction<br/>Agent"]
-        CA["Case<br/>Agent"]
-        OA["Orchestrator<br/>Agent"]
-        TA["Task<br/>Agent"]
+    subgraph ENT["Enterprise Layer/SoE"]
+        IA["Interaction/Case Agents"]
     end
 
-    subgraph EXP["Experience Layer — Agent-Facing Integration Surface"]
-        direction TB
-        subgraph A2A_BLOCK["Pattern 3 — A2A"]
-            PEERS["Peer Agents<br/><i>Own bounded context, own LLM,<br/>autonomous decision-making</i>"]
-        end
-        subgraph MCP_BLOCK["Pattern 2 — MCP Servers"]
-            MCP_DESC["Domain integration facades<br/><i>Curate tools, resources, prompts<br/>No SoR data stored</i>"]
-            INV["Inventory<br/>Context MCP"]
-            CUST["Customer<br/>Context MCP"]
-            LOG["Logistics<br/>Context MCP"]
-        end
+    subgraph DOM["Domain Layer"]
+        OA["Orchestration Agents"]
+        MCP["Domain MCP Servers"]
     end
 
-    subgraph DOM["Domain / System API Layer"]
-        direction TB
-        subgraph REST_BLOCK["Pattern 1 — REST / OAS APIs"]
-            REST_DESC["Governed access to SoR<br/><i>Direct tool bindings via OAS or UTCP</i>"]
-            ERP["ERP API"]
-            CRM["CRM API"]
-            PAY["Payment API"]
-            SHIP["Shipping API"]
-        end
+    subgraph SYS["System Layer/SoR"]
+        TA["Task Agents"]
+        SYS_API["System APIs"]
+        SOR[("Systems of Record")]
     end
 
-    subgraph SOR["Systems of Record (SoR)"]
-        ERP_SOR["ERP"]
-        CRM_SOR["CRM"]
-        PAY_SOR["Payment Provider"]
-        WMS_SOR["WMS"]
-    end
+    IA <-->|Pattern 3: A2A| OA
+    IA -->|Pattern 2: MCP| MCP
+    IA <--->|Pattern 3: A2A| TA
+    OA <-->|Pattern 3: A2A| TA
+    OA -->|Pattern 2: MCP| MCP
+    MCP -->|Pattern 1: REST| SYS_API
+    TA -->|Pattern 1: REST| SYS_API
+    SYS_API -->|Governed Access| SOR
 
-    IA & CA -->|A2A| PEERS
-    OA -->|tools| MCP_BLOCK
-    OA -->|tools| REST_BLOCK
-    TA -->|tools| REST_BLOCK
-    PEERS --> MCP_BLOCK
-    INV & CUST & LOG --> REST_BLOCK
-    ERP --> ERP_SOR
-    CRM --> CRM_SOR
-    PAY --> PAY_SOR
-    SHIP --> WMS_SOR
-
-    style AGENTS fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c
-    style EXP fill:#e8eaf6,stroke:#283593,color:#1a237e
-    style DOM fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
-    style SOR fill:#efebe9,stroke:#5d4037,color:#3e2723
-    style A2A_BLOCK fill:#fce4ec,stroke:#c62828
-    style MCP_BLOCK fill:#e3f2fd,stroke:#1565c0
-    style REST_BLOCK fill:#e8f5e9,stroke:#2e7d32
+    style ENT fill:#e8eaf6,stroke:#283593,color:#1a237e
+    style DOM fill:#e3f2fd,stroke:#1565c0,color:#0d47a1
+    style SYS fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
 ```
 
 ### 5.3 Key Layering Rules
 
-1. **Agents never bypass the system API layer.** No direct database connections, no internal service calls. All access to Systems of Record goes through governed system APIs — existing infrastructure that enforces validation, audit, and access control. This rule applies equally to AI agents and human-initiated processes.
-
-2. **The System of Record is the single source of truth — always.** Agents may cache, summarize, or transform SoR data (e.g., MCP Resources providing a pre-formatted inventory summary). But the agent's internal state is never authoritative. Stale agent context must never override current SoR data.
-
-3. **Write operations follow the same governance path as non-agentic writes.** When an agent creates a customer, updates an address, or approves a claim, the write must flow through the system API layer with identical validation, business rules, and audit trails that apply to UI- or service-initiated writes. There is no "agent fast lane" that bypasses data governance.
-
-4. **MCP servers are domain integration facades, not Systems of Record.** An MCP server does not *replace* a REST API, nor does it store authoritative data. It sits above one or more system/domain APIs and curates an AI-optimized view: semantic tools, contextual resources, behavioral prompts. This is analogous to how a BFF (Backend-for-Frontend) adapts APIs for a UI — the MCP server is a *Backend-for-Agent*.
-
-5. **One MCP server per bounded context, not per microservice.** In DDD terms, a bounded context defines a [Ubiquitous Language](https://martinfowler.com/bliki/UbiquitousLanguage.html) and a consistency boundary. The MCP server should mirror this boundary. Example: an *Inventory Context MCP* aggregates the Products API and Warehouse API, exposing a unified tool surface using inventory domain language — not product-database language.
-
-6. **Pattern 1 may target system APIs or domain APIs.** When a domain API already provides the right level of abstraction and its OAS is stable, agents can bind directly to it via Pattern 1. MCP (Pattern 2) is warranted only when the escalation criteria from Section 4.2 apply.
-
-7. **A2A (Pattern 3) is a cross-context concern.** When an agent in one bounded context needs to interact with an agent in another bounded context, neither tools nor MCP apply — the interaction is peer-to-peer, multi-turn, and crosses linguistic (ubiquitous language) boundaries. Each agent maintains its own SoR relationships within its own bounded context.
-
-### 5.4 DDD Alignment
-
-The three integration patterns map directly to DDD strategic design concepts:
-
-| DDD Concept | Agentic Integration Pattern | Relationship |
-|:------------|:---------------------------|:-------------|
-| **Bounded Context** | MCP Server (Pattern 2) | The MCP server defines the AI-facing boundary of a bounded context. Its tools use the context's ubiquitous language. |
-| **Context Map** | The set of all agent integration points | Patterns 1, 2, and 3 together form the enterprise's agentic context map — how bounded contexts expose capabilities to agents and to each other. |
-| **Published Language** | OAS (Pattern 1), MCP tool schemas (Pattern 2) | The structured contracts agents use to interact with a bounded context. |
-| **Anti-Corruption Layer** | MCP Server (Pattern 2) | The MCP server translates between the domain's internal model and the agent's reasoning model — preventing system-level concerns from corrupting the agent's context. |
-| **Open Host Service** | REST API (Pattern 1), MCP Server (Pattern 2) | The publicly available, well-defined interface a bounded context offers to its consumers. |
-| **Separate Ways** | Agent-to-Agent (Pattern 3) | When two bounded contexts cannot be integrated via shared tools, their agents interact as autonomous peers with independent models. |
-
-> [!TIP]
-> **The anti-corruption layer role of MCP is its most important DDD function.** Without it, agents must reason about system-level schemas (database column names, HTTP error codes, internal IDs) — leaking SoR implementation details into the reasoning layer. The MCP server absorbs this translation, presenting domain-meaningful abstractions to the agent while routing writes back through the governed system API layer.
+1. **Agents can live anywhere, but A2A (Pattern 3) connects them.** Whether an agent is a task agent on the system layer or an orchestrator on the enterprise layer, if another agent needs to interact with it autonomously, they use Pattern 3.
+2. **Agents never bypass data governance.** Whether acting through a Task Agent, an MCP server, or directly calling a REST API, all writes to a System of Record must flow through governed System Layer interfaces (enforcing validation and audit trails). The SoR remains the single source of truth; agent state is ephemeral.
+3. **MCP Servers (Pattern 2) are domain-level facades.** An MCP server sits at the Domain Layer. It does not replace a REST API nor store authoritative data; it curates an AI-optimized view (tools, resources, prompts) of underlying System APIs. There should be one MCP server per bounded context.
+4. **REST APIs (Pattern 1) remain the foundation.** Pattern 1 is used by MCP servers to talk to backends, by agents to talk directly to simple systems, and by human-driven UI applications. It is the default system-level contract.
 
 **Key architectural principle:** As you move from Pattern 1 → 2 → 3, you trade **simplicity and control** for **flexibility and autonomy**. Always default to the simplest pattern that satisfies the requirements — and always ensure that the System of Record remains the authoritative data source at every layer.
 
 ---
 
-## 6. Governance and Ownership
-
-| Concern | Pattern 1 (REST) | Pattern 2 (MCP) | Pattern 3 (A2A) |
-|:--------|:-----------------|:-----------------|:-----------------|
-| **Who owns the endpoint?** | Product Team (existing) | Product Team / Domain (new MCP server) | Agent team |
-| **SoR authority** | Direct — system API is the governed interface to the SoR | Proxied — MCP routes writes through system APIs; stores no authoritative data | Each agent manages its own SoR relationships |
-| **Change propagation** | Manual OAS re-injection | Automatic via `list_tools` | Agent handles internally |
-| **Auth & access control** | API gateway (existing) | MCP gateway | A2A protocol / agent identity |
-| **Observability** | API metrics (existing) | MCP server telemetry (new) | Agent-level tracing (new) |
-| **Blast radius of change** | All agents using stale OAS | Contained to MCP server consumers | Contained to agent's peers |
-
----
-
-## 7. Anti-Patterns to Avoid
+## 6. Anti-Patterns to Avoid
 
 | Anti-Pattern | Description | Correct Pattern |
 |:-------------|:------------|:----------------|
@@ -381,6 +313,19 @@ The three integration patterns map directly to DDD strategic design concepts:
 | **Agent as shadow SoR** | Agent maintains its own persistent state that diverges from the System of Record (e.g., local cache treated as truth, agent-managed customer lists) | Agent state is ephemeral; the SoR is always authoritative. Sync back through system APIs. |
 | **Ungoverned agent writes** | Agent writes to a SoR through a path that bypasses validation, audit trails, or access controls that apply to human-initiated writes | Route all writes through the same governed system API layer. No "agent fast lane." |
 | **Stateless peer agents** | Using A2A for what is effectively a function call | Pattern 1 or 2: Use tools for discrete actions |
+
+---
+
+## 7. Governance and Ownership
+
+| Concern | Pattern 1 (REST) | Pattern 2 (MCP) | Pattern 3 (A2A) |
+|:--------|:-----------------|:-----------------|:-----------------|
+| **Who owns the endpoint?** | Product Team (existing) | Product Team / Domain (new MCP server) | Agent team |
+| **SoR authority** | Direct — system API is the governed interface to the SoR | Proxied — MCP routes writes through system APIs; stores no authoritative data | Each agent manages its own SoR relationships |
+| **Change propagation** | Manual OAS re-injection | Automatic via `list_tools` | Agent handles internally |
+| **Auth & access control** | API gateway (existing) | MCP gateway | A2A protocol / agent identity |
+| **Observability** | API metrics (existing) | MCP server telemetry (new) | Agent-level tracing (new) |
+| **Blast radius of change** | All agents using stale OAS | Contained to MCP server consumers | Contained to agent's peers |
 
 ---
 
