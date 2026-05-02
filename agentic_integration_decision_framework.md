@@ -298,8 +298,8 @@ graph TB
     end
 
     subgraph SOR["Systems of Record (SoR)"]
-        ERP_SOR["ERP (SAP)"]
-        CRM_SOR["CRM (SF)"]
+        ERP_SOR["ERP"]
+        CRM_SOR["CRM"]
         PAY_SOR["Payment Provider"]
         WMS_SOR["WMS"]
     end
