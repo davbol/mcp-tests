@@ -1,5 +1,5 @@
 # Agentic Integration Patterns
-## Technical Decision Framework
+## Decision Framework
 
 | | |
 |:--|:--|
@@ -27,7 +27,9 @@ This document provides a decision framework for teams integrating AI agents into
 
 ---
 
-## 2. Foundational Concept: Systems of Record
+## 2. Foundational Concepts
+
+### 2.1: Systems of Record
 
 Before discussing integration patterns, teams must internalize the concept that underpins all enterprise data architecture: the **System of Record (SoR)**.
 
@@ -43,20 +45,12 @@ Agents are fundamentally **consumers and mutators of SoR data**. Every agent act
 
 3. **Write operations require governance.** When an agent writes back to a SoR (creating a customer, updating an address, approving a claim), the write must flow through the same governed API layer that human-initiated writes use — with identical validation, audit trails, and access controls.
 
-> [!WARNING]
+> [!IMPORTANT]
 > **Agents must never become shadow Systems of Record.** If an agent stores data locally, caches derived state, or maintains its own "source of truth" that diverges from the SoR, the enterprise loses data integrity. Agent state is ephemeral; SoR state is authoritative.
-
-### SoR and the Three Integration Patterns
-
-| Pattern | Relationship to SoR |
-|:--------|:--------------------|
-| **Pattern 1 (REST API Tools)** | Direct, governed access to SoR via system APIs. The default path for CRUD operations against authoritative data. |
-| **Pattern 2 (MCP Servers)** | AI-native facade *above* SoR system APIs. MCP Resources may provide read-optimized views of SoR data; MCP Tools route writes back through system APIs. The MCP server never stores authoritative data itself. |
-| **Pattern 3 (Agent-to-Agent)** | Peer agents may each have their own SoR relationships within their bounded context. Cross-context interactions respect each context's data authority. |
 
 ---
 
-## 3. Enterprise Agent Taxonomy
+### 2.2: Enterprise Agent Taxonomy
 
 Before selecting an integration pattern, teams must understand the four categories of agents operating in the enterprise. Each category has different integration needs.
 
@@ -72,7 +66,7 @@ Before selecting an integration pattern, teams must understand the four categori
 
 ---
 
-## 4. Three Integration Patterns
+## 3. Three Integration Patterns
 
 ```mermaid
 graph LR
@@ -102,7 +96,7 @@ graph LR
     style P3 fill:#fce4ec,stroke:#c62828,color:#b71c1c
 ```
 
-### 4.1 Pattern 1 — REST API Tools (Default)
+### 3.1 Pattern 1 — REST API Tools (Default)
 
 **Mechanism:** OpenAPI Specifications (OAS) are loaded directly as tool definitions. Agents call structured REST endpoints via generated tool wrappers (e.g., Google ADK OpenAPI tools). UTCP (Universal Tool Calling Protocol) may extend this pattern with tool discovery capabilities.
 
@@ -135,16 +129,13 @@ Where Pattern 1 with plain OAS is static (definitions are injected at build time
 
 ---
 
-### 4.2 Pattern 2 — MCP Servers (AI-Native Integration Layer)
+### 3.2 Pattern 2 — MCP Servers (AI-Native Integration Layer)
 
 **Mechanism:** Teams operate remote MCP servers within their bounded context. Agents connect via the Model Context Protocol and discover tools, resources, and prompts dynamically at runtime.
 
 **Scope:** Within domains / bounded contexts (DDD). The MCP server is owned and operated by the domain team.
 
 **When to use — escalate from Pattern 1 when ANY of the following apply:**
-
-> [!NOTE]
-> MCP servers are **not Systems of Record**. They provide an AI-optimized view of SoR data via Resources and route writes back through system APIs. The MCP server itself stores no authoritative data — it is a facade, not a data store.
 
 1. **Separation of concerns is violated.** The agent prompt could be polluted with transport details (base URLs, auth headers, error parsing, multi-service orchestration). MCP enforces a clean Host → Client → Server architecture that keeps the agent's reasoning layer free of infrastructure concerns.
 
@@ -174,7 +165,7 @@ Where Pattern 1 with plain OAS is static (definitions are injected at build time
 
 ---
 
-### 4.3 Pattern 3 — Agent-to-Agent (Agents as Autonomous Peers)
+### 3.3 Pattern 3 — Agent-to-Agent (Agents as Autonomous Peers)
 
 **Mechanism:** Teams expose agents directly as integration endpoints. Other agents interact with them as autonomous peers — not as tools, not as functions. This requires a fundamentally different interaction model (e.g., A2A protocol, multi-turn task-based messaging).
 
@@ -238,7 +229,7 @@ A common over-engineering mistake is wrapping a simple API call in an agent. Tas
 
 ---
 
-## 5. Decision Tree
+## 4. Decision Tree
 
 Use this flowchart when selecting an integration pattern for a new agentic integration.
 
@@ -272,25 +263,11 @@ flowchart TD
     style START fill:#f5f5f5,stroke:#757575,color:#212121
 ```
 
-### Quick-Reference Decision Matrix
-
-| Signal | Pattern 1 (REST) | Pattern 2 (MCP) | Pattern 3 (A2A) |
-|:-------|:-:|:-:|:-:|
-| Stable OAS exists, simple CRUD | ✅ | — | — |
-| Agent needs pre-aggregated context | — | ✅ | — |
-| Multiple agents consume same tools | — | ✅ | — |
-| Capability requires multi-turn dialogue | — | — | ✅ |
-| Capability exercises autonomous judgment | — | — | ✅ |
-| Completion is not guaranteed | — | — | ✅ |
-| Task is discrete, stateless, reusable | ✅ | ✅ | — |
-| Schema changes frequently | — | ✅ | — |
-| Integration crosses bounded contexts with autonomy | — | — | ✅ |
-
 ---
 
-## 6. Layered Architecture — DDD, API Tiers, and Systems of Record
+## 5. Layered Architecture — DDD, API Tiers, and Systems of Record
 
-### 6.1 Enterprise API Layering
+### 5.1 Enterprise API Layering
 
 Enterprise integration architectures traditionally organize APIs into layers. Agentic integration patterns must respect and extend — not bypass — this established structure:
 
@@ -303,7 +280,7 @@ Enterprise integration architectures traditionally organize APIs into layers. Ag
 > [!IMPORTANT]
 > **Pattern 1 (REST tools) targets the System and Domain API layers** — the governed path to Systems of Record. Pattern 2 (MCP) operates at the **Domain/Experience boundary** — it is not a peer of REST but a facade *above* it that provides AI-optimized views of SoR data. Pattern 3 (A2A) is a peer-to-peer concern that crosses bounded contexts entirely.
 
-### 6.2 Where Patterns Live in the Stack
+### 5.2 Where Patterns Live in the Stack
 
 ```mermaid
 graph TB
@@ -365,7 +342,7 @@ graph TB
     style REST_BLOCK fill:#e8f5e9,stroke:#2e7d32
 ```
 
-### 6.3 Key Layering Rules
+### 5.3 Key Layering Rules
 
 1. **Agents never bypass the system API layer.** No direct database connections, no internal service calls. All access to Systems of Record goes through governed system APIs — existing infrastructure that enforces validation, audit, and access control. This rule applies equally to AI agents and human-initiated processes.
 
@@ -381,7 +358,7 @@ graph TB
 
 7. **A2A (Pattern 3) is a cross-context concern.** When an agent in one bounded context needs to interact with an agent in another bounded context, neither tools nor MCP apply — the interaction is peer-to-peer, multi-turn, and crosses linguistic (ubiquitous language) boundaries. Each agent maintains its own SoR relationships within its own bounded context.
 
-### 6.4 DDD Alignment
+### 5.4 DDD Alignment
 
 The three integration patterns map directly to DDD strategic design concepts:
 
@@ -401,12 +378,11 @@ The three integration patterns map directly to DDD strategic design concepts:
 
 ---
 
-## 7. Governance and Ownership
+## 6. Governance and Ownership
 
 | Concern | Pattern 1 (REST) | Pattern 2 (MCP) | Pattern 3 (A2A) |
 |:--------|:-----------------|:-----------------|:-----------------|
 | **Who owns the endpoint?** | Product Team (existing) | Product Team / Domain (new MCP server) | Agent team |
-| **Who defines the tool contract?** | OAS (existing) | MCP tool definitions (curated) | Agent's capability description |
 | **SoR authority** | Direct — system API is the governed interface to the SoR | Proxied — MCP routes writes through system APIs; stores no authoritative data | Each agent manages its own SoR relationships |
 | **Change propagation** | Manual OAS re-injection | Automatic via `list_tools` | Agent handles internally |
 | **Auth & access control** | API gateway (existing) | MCP gateway | A2A protocol / agent identity |
@@ -415,7 +391,7 @@ The three integration patterns map directly to DDD strategic design concepts:
 
 ---
 
-## 8. Anti-Patterns to Avoid
+## 7. Anti-Patterns to Avoid
 
 | Anti-Pattern | Description | Correct Pattern |
 |:-------------|:------------|:----------------|
