@@ -68,33 +68,15 @@ Before selecting an integration pattern, teams must understand the four categori
 
 ## 3. Three Integration Patterns
 
-```mermaid
-graph LR
-    subgraph P1["🔧 Pattern 1 — REST API Tools"]
-        direction TB
-        P1a["<b>Default</b>"]
-        P1b["OAS → Tool definitions"]
-        P1c["System API layer focus"]
-    end
-    subgraph P2["⚙️ Pattern 2 — MCP Servers"]
-        direction TB
-        P2a["<b>AI-Native Layer</b>"]
-        P2b["Team-operated remote MCP servers"]
-        P2c["Within bounded contexts"]
-    end
-    subgraph P3["🤝 Pattern 3 — Agent-to-Agent"]
-        direction TB
-        P3a["<b>Problem Solving</b>"]
-        P3b["Agents exposed as autonomous peers"]
-        P3c["Across bounded contexts"]
-    end
-
-    P1 ~~~ P2 ~~~ P3
-
-    style P1 fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
-    style P2 fill:#e3f2fd,stroke:#1565c0,color:#0d47a1
-    style P3 fill:#fce4ec,stroke:#c62828,color:#b71c1c
-```
+| | 🔧 Pattern 1 — REST API Tools | ⚙️ Pattern 2 — MCP Servers | 🤝 Pattern 3 — Agent-to-Agent |
+|:--|:--|:--|:--|
+| **Role** | Default integration path | AI-native integration layer | Autonomous peer collaboration |
+| **Mechanism** | OAS loaded as tool definitions; agents call REST endpoints directly via generated wrappers | Remote MCP servers expose tools, resources, and prompts discovered dynamically at runtime | Agents exposed as autonomous endpoints; interaction via multi-turn task-based messaging (e.g. A2A protocol) |
+| **Scope** | Within a bounded context | Within a bounded context | Across bounded contexts |
+| **Relationship to SoR** | Direct, governed access via system APIs | Facade above system APIs — routes writes through them; stores no authoritative data | Each agent maintains its own SoR relationships within its context |
+| **Interaction model** | Stateless, discrete tool calls | Stateless or session-based tool/resource calls | Multi-turn, stateful, non-deterministic completion |
+| **Maturity** | Established — broad tooling support | Emerging — growing ecosystem | Early — protocol standards still evolving |
+| **Primary use case** | Simple CRUD, stable schemas, direct data access | Context aggregation, multi-service orchestration, AI-optimized views | Complex problem-solving requiring autonomy, judgment, or cross-context dialogue |
 
 ### 3.1 Pattern 1 — REST API Tools (Default)
 
