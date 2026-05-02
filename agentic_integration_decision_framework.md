@@ -180,7 +180,7 @@ Before selecting an integration pattern, teams must understand the four categori
 
 4. **Control flow transfer is acceptable.** The caller is willing to delegate a sub-problem and accept that completion is not guaranteed. This is analogous to the `GOTO` construct — powerful but must be isolated to well-defined boundaries.
 
-**Mapping to the enterprise agent taxonomy (Section 3):**
+**Mapping to the enterprise agent taxonomy (Section 2.2):**
 
 | Agent Category | Typical Integration Pattern | Rationale |
 |:---------------|:---------------------------|:----------|
