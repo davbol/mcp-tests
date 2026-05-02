@@ -125,6 +125,8 @@ Before selecting an integration pattern, teams must understand the four categori
 
 4. **Multiple agents consume the same backend.** To avoid duplicating integration code across agents, a centralized MCP server acts as a single point of governance and shared tool registry — write once, connect many.
 
+5. **3rd Party (SaaS) Integration.** The capability is provided by a third-party vendor or SaaS solution that offers an MCP server out of the box. This enables immediate, native agent integration.
+
 **Characteristics:**
 
 | Aspect | Detail |
