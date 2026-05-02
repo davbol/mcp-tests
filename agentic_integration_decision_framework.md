@@ -119,17 +119,13 @@ Where Pattern 1 with plain OAS is static (definitions are injected at build time
 
 **When to use — escalate from Pattern 1 when ANY of the following apply:**
 
-1. **Separation of concerns is violated.** The agent prompt could be polluted with transport details (base URLs, auth headers, error parsing, multi-service orchestration). MCP enforces a clean Host → Client → Server architecture that keeps the agent's reasoning layer free of infrastructure concerns.
+1. **Agent context requires isolation from infrastructure.** The agent prompt risks being polluted with transport details, auth negotiation, error semantics, or multi-service orchestration. MCP separates these concerns into Host and Server layers, keeping the agent focused on reasoning.
 
-2. **Context bloat from OAS injection.** The OpenAPI spec consumes significant context window budget. A typical OAS is ~5,500 characters for just 5 endpoints — at scale across dozens of microservices, this becomes untenable. MCP's `list_tools` provides curated, minimal, semantic tool definitions fetched live.
+2. **Dynamic discoverability is needed.** Injecting full static OpenAPI specs causes unacceptable context bloat, or API schemas evolve frequently enough that static definitions go stale. MCP provides curated, semantic, and live tool definitions.
 
-3. **The agent needs contextual data, not just transactions.** REST APIs are transactional (CRUD). But agents often need **background context** before acting — e.g., a pre-formatted inventory summary, a customer risk profile, a domain state overview. MCP Resources (`catalog://summary`) provide first-class contextual data streams with no REST equivalent.
+3. **The workflow requires AI-native primitives (Resources and Prompts).** The agent needs background context before acting (provided by MCP Resources, e.g., `catalog://summary`), or enterprise standards and behavioral guardrails must be enforced by the backend (provided by MCP Prompts).
 
-4. **Behavioral guardrails must be enforced at the platform level.** Enterprise standards for tone, language, compliance rules, or output formatting should not depend on prompt engineering. MCP Prompts provide backend-managed behavioral templates (e.g., `draft_loyalty_email`) that enforce business logic at the server, not the agent.
-
-5. **Multiple agents consume the same backend.** Without MCP, each agent independently implements tool definitions, HTTP clients, auth, error handling, and schema migration. A centralized MCP server acts as a shared, governed tool registry — write once, connect many. Schema changes propagate automatically on the next `list_tools` call.
-
-6. **API schemas evolve frequently.** Static OAS injection goes stale. MCP tool definitions are fetched dynamically at connection time — never stale, always reflecting the live API contract.
+4. **Multiple agents consume the same backend.** To avoid duplicating integration code across agents, a centralized MCP server acts as a single point of governance and shared tool registry — write once, connect many.
 
 **Characteristics:**
 
@@ -224,8 +220,8 @@ flowchart TD
     Q1 -->|YES| P3
     Q1 -->|NO| Q2
 
-    Q2{"Benefits from AI-native capabilities<br/>or shared integration layer?"}
-    Q2_NOTE["Context resources • Behavioral prompts<br/>Multi-agent reuse • Dynamic discovery<br/>Transport isolation • API aggregation"]
+    Q2{"Requires AI-native integration capabilities<br/>or shared integration layer?"}
+    Q2_NOTE["1. Infrastructure isolation<br/>2. Dynamic discoverability<br/>3. Resources & Prompts<br/>4. Multi-agent reuse"]
 
     Q2 -.->|"see criteria"| Q2_NOTE
 
